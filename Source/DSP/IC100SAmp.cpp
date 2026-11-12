@@ -294,8 +294,10 @@ void IC100SAmp::prepare (double sr)
     cab[4].setLowPass (fsBase, lpF, 0.7);
     cab[5].setLowPass (fsBase, lpF * 1.15, 1.0);
 
-    // Normalise the miked speaker so 1 kHz matches the speaker-terminal level.
+    // Normalise the miked speaker so 1 kHz matches the speaker-terminal level
+    // (a lower tone at very low host rates, where 1 kHz is above Nyquist).
     {
+        const double fNorm = fsBase * 0.2 < 1000.0 ? fsBase * 0.2 : 1000.0;
         speaker.reset();
         for (int i = 0; i < 6; ++i) cab[i].reset();
         double prev = 0.0, peak = 0.0;
@@ -307,7 +309,7 @@ void IC100SAmp::prepare (double sr)
             for (int k = 0; k < F; ++k)
             {
                 const double tt = (double) (i * F + k) / fsOs;
-                const double vin = std::sin (2.0 * kPi * 1000.0 * tt);
+                const double vin = std::sin (2.0 * kPi * fNorm * tt);
                 speaker.process (&vin);
                 const double vc = speaker.v (spkCone);
                 last = (vc - prev) * fsOs;
@@ -598,7 +600,7 @@ void IC100SAmp::process (const float* in, float* out, int numSamples)
         powerMix += ((powerOn ? 1.0 : 0.0) - powerMix) * a;
 
         double o = dryOut + (y - dryOut) * powerMix;
-        if (! (o == o)) { reset(); o = 0.0; }
+        if (! (std::fabs (o) < 1.0e6)) { reset(); o = 0.0; }   // NaN or infinity: start again from rest
         out[n] = (float) o;
     }
 }

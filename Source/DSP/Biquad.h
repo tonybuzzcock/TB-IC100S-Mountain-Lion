@@ -1,7 +1,8 @@
 // Biquad.h
 // RBJ-cookbook biquads (transposed direct form II) plus first-order sections.
-// Used only where the schematic does not give components: the inside of the
-// V-S tone correction module, the spring tank, and the loudspeaker cone.
+// Used only where the schematic does not give components: the power amp's
+// response and the loudspeaker cabinet. Every design frequency is kept below
+// 0.45 x the sample rate, so the filters stay stable at any host rate.
 
 #ifndef TBIC_BIQUAD_H
 #define TBIC_BIQUAD_H
@@ -30,8 +31,15 @@ public:
 
     void setIdentity() { b0 = 1.0; b1 = b2 = a1 = a2 = 0.0; }
 
+    static double safeF (double fs, double f)
+    {
+        const double top = 0.45 * fs;
+        return f > top ? top : (f < 1.0e-3 ? 1.0e-3 : f);
+    }
+
     void setPeak (double fs, double f, double q, double gainDb)
     {
+        f = safeF (fs, f);
         const double A = std::pow (10.0, gainDb / 40.0);
         const double w = 2.0 * kPi * f / fs, c = std::cos (w), al = std::sin (w) / (2.0 * q);
         set (1.0 + al * A, -2.0 * c, 1.0 - al * A, 1.0 + al / A, -2.0 * c, 1.0 - al / A);
@@ -39,6 +47,7 @@ public:
 
     void setLowShelf (double fs, double f, double gainDb)
     {
+        f = safeF (fs, f);
         const double A = std::pow (10.0, gainDb / 40.0);
         const double w = 2.0 * kPi * f / fs, c = std::cos (w), s = std::sin (w);
         const double al = s / 2.0 * std::sqrt (2.0), sq = 2.0 * std::sqrt (A) * al;
@@ -48,6 +57,7 @@ public:
 
     void setHighShelf (double fs, double f, double gainDb)
     {
+        f = safeF (fs, f);
         const double A = std::pow (10.0, gainDb / 40.0);
         const double w = 2.0 * kPi * f / fs, c = std::cos (w), s = std::sin (w);
         const double al = s / 2.0 * std::sqrt (2.0), sq = 2.0 * std::sqrt (A) * al;
@@ -57,12 +67,14 @@ public:
 
     void setLowPass (double fs, double f, double q)
     {
+        f = safeF (fs, f);
         const double w = 2.0 * kPi * f / fs, c = std::cos (w), al = std::sin (w) / (2.0 * q);
         set ((1 - c) / 2, 1 - c, (1 - c) / 2, 1 + al, -2 * c, 1 - al);
     }
 
     void setHighPass (double fs, double f, double q)
     {
+        f = safeF (fs, f);
         const double w = 2.0 * kPi * f / fs, c = std::cos (w), al = std::sin (w) / (2.0 * q);
         set ((1 + c) / 2, -(1 + c), (1 + c) / 2, 1 + al, -2 * c, 1 - al);
     }
@@ -70,12 +82,14 @@ public:
     // First-order sections via the bilinear transform (b2 = a2 = 0).
     void setLowPass1 (double fs, double f)
     {
+        f = safeF (fs, f);
         const double k = std::tan (kPi * f / fs);
         set (k, k, 0.0, k + 1.0, k - 1.0, 0.0);
     }
 
     void setHighPass1 (double fs, double f)
     {
+        f = safeF (fs, f);
         const double k = std::tan (kPi * f / fs);
         set (1.0, -1.0, 0.0, k + 1.0, k - 1.0, 0.0);
     }

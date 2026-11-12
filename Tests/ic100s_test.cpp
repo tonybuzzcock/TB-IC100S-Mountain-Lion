@@ -423,7 +423,24 @@ static void testStability()
         }
         if (! allFinite (run (a, noise), 3.0)) ok = false;
     }
-    std::printf ("    %d sine runs + 24 loud noise runs\n", runs);
+    // Very low and very high host rates (hosts and validators try 1 kHz - 768 kHz)
+    {
+        const double rates[] = { 1000.0, 8000.0, 11025.0, 22050.0, 192000.0, 384000.0, 768000.0 };
+        for (int k = 0; k < 7; ++k)
+        {
+            IC100SAmp a;
+            a.setCh2On (true); a.setSustainOn (k % 2 == 0); a.setCh1Volume (1.0);
+            a.prepare (rates[k]);
+            std::vector<float> noise ((size_t) (rates[k] * 0.05) + 64);
+            for (size_t i = 0; i < noise.size(); ++i)
+            {
+                seed = seed * 1664525u + 1013904223u;
+                noise[i] = (float) (((seed >> 8) / 16777216.0 * 2.0 - 1.0) * 0.5);
+            }
+            if (! allFinite (run (a, noise), 3.0)) { ok = false; std::printf ("    unstable at %.0f Hz\n", rates[k]); }
+        }
+    }
+    std::printf ("    %d sine runs + 24 loud noise runs + 7 sample rates from 1 kHz to 768 kHz\n", runs);
     check (ok, "no NaN, no runaway, output under +10 dBFS for every setting");
 }
 
